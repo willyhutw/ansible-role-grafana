@@ -1,0 +1,50 @@
+---
+
+- name: (redhat) | check grafana
+  shell: rpm -qa | grep grafana
+  register: grafana_installed
+  ignore_errors: yes
+
+
+- name: (redhat) | remove grafana
+  yum:
+    name: grafana
+    state: absent
+  when: grafana_installed.rc == 0
+
+
+- name: (redhat) | wget grafana package
+  get_url:
+    url: https://grafanarel.s3.amazonaws.com/builds/{{grafana_version}}.x86_64.rpm
+    dest: /tmp/{{grafana_version}}.x86_64.rpm
+
+
+- name: (redhat) | install grafana
+  yum:
+    name: /tmp/{{grafana_version}}.x86_64.rpm
+    state: present
+
+
+- name: (redhat) | remove temp package
+  file:
+    path: /tmp/{{grafana_version}}.x86_64.rpm
+    state: absent
+
+
+- name: (redhat) | enable grafana-server
+  shell: /bin/systemctl daemon-reload && /bin/systemctl enable grafana-server.service
+
+
+- name: (redhat) | replace grafana config file
+  template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+  notify:
+    - restart grafana
+
+
+- name: (redhat) | start grafana
+  service:
+    name: grafana-server
+    state: started
+

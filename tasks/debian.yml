@@ -1,0 +1,70 @@
+---
+
+- name: (debian) | check grafana
+  shell: dpkg -l | grep grafana
+  register: grafana_installed
+  ignore_errors: yes
+
+
+- name: (debian) | remove grafana
+  apt:
+    name: grafana
+    state: absent
+    purge: yes
+  when: grafana_installed.rc == 0
+
+
+- name: (debian) | wget grafana package
+  get_url:
+    url: https://grafanarel.s3.amazonaws.com/builds/{{grafana_version}}_amd64.deb
+    dest: /tmp/{{grafana_version}}_amd64.deb
+
+
+- name: (debian) | install fontconfig-config
+  apt:
+    name: "{{item}}"
+    state: present
+  with_items:
+    - fontconfig-config
+    - libfontconfig
+
+
+- name: (debian) | install grafana
+  shell: dpkg -i /tmp/{{grafana_version}}_amd64.deb
+
+
+- name: (debian) | remove temp package
+  file:
+    path: /tmp/{{grafana_version}}_amd64.deb
+    state: absent
+
+
+- name: (debian) | check systemctl
+  shell: /usr/bin/which systemctl
+  register: systemctl_exist
+  ignore_errors: yes
+
+
+- name: (debian) | enable grafana-server
+  shell: /bin/systemctl daemon-reload && /bin/systemctl enable grafana-server.service
+  when: systemctl_exist.rc == 0
+
+
+- name: (debian) | update-rc.d grafana-server
+  shell: /usr/sbin/update-rc.d grafana-server defaults
+  when: systemctl_exist.rc != 0
+
+
+- name: (debian) | replace grafana config file
+  template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+  notify:
+    - restart grafana
+
+
+- name: (debian) | start grafana
+  service:
+    name: grafana-server
+    state: started
+

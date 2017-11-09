@@ -1,0 +1,4 @@
+---
+grafana_version: grafana_4.1.1-1484211277
+grafana_listen_nic: all
+grafana_listen_port: 3000
